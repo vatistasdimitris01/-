@@ -59,11 +59,20 @@ interface DataCardProps {
   onDeleteRow: (id:string, row: Row) => void;
 }
 
+const displayDate = (dateStr: string) => {
+    if (!dateStr || typeof dateStr !== 'string') return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+};
+
 const DataCard: React.FC<DataCardProps> = ({ row, onUpdateRow, onDeleteRow }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex items-center justify-between space-x-4 transition-all duration-300 ease-in-out">
         <div className="flex-1 min-w-0">
             <p className="text-base font-bold text-gray-800 dark:text-gray-100 truncate">{row.supplier}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{displayDate(row.date)}</p>
         </div>
         <div className="w-16 flex-shrink-0">
             <EditableCell value={row.pallets} onSave={(newVal) => onUpdateRow(row.id, { pallets: Number(newVal) })} inputType="number" />
@@ -129,7 +138,7 @@ export const DataTable: React.FC<DataTableProps> = ({ rows, onUpdateRow, onDelet
 
       {rows.length > 0 ? (
         sortedDates.map(date => {
-            const dailyTotal = groupedRows[date].reduce((sum, row) => sum + row.pallets, 0);
+            const dailyTotal = groupedRows[date].reduce((sum, row) => sum + row. pallets, 0);
             return (
                 <div key={date} className="animate-fade-in">
                     <div className="flex justify-between items-baseline px-1 mb-2">

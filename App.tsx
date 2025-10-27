@@ -1,48 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Row } from './types';
-import { INITIAL_ROWS } from './constants';
-import { useHistory } from './hooks/useHistory';
+import { supabase } from './supabaseClient';
 import { DataTable } from './components/DataTable';
 import { FilterAndAddForm } from './components/FilterAndAddForm';
 import { Header } from './components/Header';
-import { HistoryModal } from './components/HistoryModal';
 
 const App: React.FC = () => {
-  const { state: rows, setState: setRows, revertToState, fullHistory } = useHistory<Row[]>(INITIAL_ROWS);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleAddRow = (newRowData: Omit<Row, 'id'>) => {
-    const newRow: Row = {
-      id: `row-${Date.now()}`,
-      ...newRowData
-    };
-    const description = `Προσθήκη: ${newRow.pallets} παλέτες για ${newRow.supplier}`;
-    setRows(currentRows => [newRow, ...currentRows], description);
+  const fetchRows = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('pallets')
+        .select('*')
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      if (data) {
+        setRows(data);
+      }
+    } catch (error) {
+      console.error("Error fetching rows:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRows();
+  }, []);
+
+  const handleAddRow = async (newRowData: Omit<Row, 'id'>) => {
+    try {
+      const { error } = await supabase.from('pallets').insert([newRowData]);
+      if (error) throw error;
+      // Refetch to get the latest data including the new row with its generated ID
+      fetchRows(); 
+    } catch (error) {
+      console.error("Error adding row:", error);
+    }
   };
   
-  const handleDeleteRow = (id: string, row: Row) => {
-    const description = `Διαγραφή: ${row.pallets} παλέτες από ${row.supplier}`;
-    setRows(currentRows => currentRows.filter(r => r.id !== id), description);
+  const handleDeleteRow = async (id: string, row: Row) => {
+    try {
+      const { error } = await supabase.from('pallets').delete().match({ id });
+      if (error) throw error;
+      setRows(currentRows => currentRows.filter(r => r.id !== id));
+    } catch (error) {
+       console.error("Error deleting row:", error);
+    }
   }
 
-  const handleUpdateRow = (id: string, updatedData: Partial<Omit<Row, 'id'>>) => {
-    let description = "Ενημέρωση εγγραφής";
-    setRows(currentRows =>
-      currentRows.map(row => {
-        if (row.id === id) {
-          description = `Αλλαγή παλετών για ${row.supplier} από ${row.pallets} σε ${updatedData.pallets}`;
-          return { ...row, ...updatedData };
-        }
-        return row;
-      }),
-      description
-    );
+  const handleUpdateRow = async (id: string, updatedData: Partial<Omit<Row, 'id'>>) => {
+     try {
+      const { data, error } = await supabase
+        .from('pallets')
+        .update(updatedData)
+        .match({ id })
+        .select();
+
+      if (error) throw error;
+      
+      if(data) {
+        setRows(currentRows =>
+          currentRows.map(row => (row.id === id ? data[0] : row))
+        );
+      }
+    } catch (error) {
+      console.error("Error updating row:", error);
+    }
   };
-
-  const handleRevert = (index: number) => {
-    revertToState(index);
-    setIsHistoryOpen(false);
-  }
 
   return (
     <>
@@ -63,25 +95,25 @@ const App: React.FC = () => {
         }
       `}</style>
       <div className="min-h-screen bg-slate-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <Header onOpenHistory={() => setIsHistoryOpen(true)} />
+        <Header />
         <main className="max-w-lg mx-auto px-4 pb-12">
           <div className="py-6 space-y-6">
               <FilterAndAddForm 
                 onAddRow={handleAddRow}
               />
-              <DataTable 
-                  rows={rows} 
-                  onDeleteRow={handleDeleteRow}
-                  onUpdateRow={handleUpdateRow}
-              />
+              {loading ? (
+                <div className="text-center py-16 px-4">
+                  <p className="text-gray-500 dark:text-gray-400">Φόρτωση δεδομένων...</p>
+                </div>
+              ) : (
+                <DataTable 
+                    rows={rows} 
+                    onDeleteRow={handleDeleteRow}
+                    onUpdateRow={handleUpdateRow}
+                />
+              )}
           </div>
         </main>
-        <HistoryModal 
-          isOpen={isHistoryOpen}
-          onClose={() => setIsHistoryOpen(false)}
-          history={fullHistory}
-          onRevert={handleRevert}
-        />
       </div>
     </>
   );

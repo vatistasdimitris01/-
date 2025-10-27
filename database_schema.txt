@@ -1,0 +1,36 @@
+-- Create the table for storing pallet entries
+CREATE TABLE public.pallets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  supplier TEXT NOT NULL,
+  pallets INTEGER NOT NULL CHECK (pallets > 0),
+  date DATE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Enable Row Level Security (RLS) on the table
+ALTER TABLE public.pallets ENABLE ROW LEVEL SECURITY;
+
+-- Create a policy that allows anonymous users to read all records.
+-- The Supabase anon key is associated with the 'anon' role.
+CREATE POLICY "Enable read access for all users"
+ON public.pallets
+FOR SELECT
+USING (true);
+
+-- Create a policy that allows anonymous users to insert new records.
+CREATE POLICY "Enable insert for anon users"
+ON public.pallets
+FOR INSERT
+WITH CHECK (true);
+
+-- Create a policy that allows anonymous users to update records.
+CREATE POLICY "Enable update for anon users"
+ON public.pallets
+FOR UPDATE
+USING (true);
+
+-- Create a policy that allows anonymous users to delete records.
+CREATE POLICY "Enable delete for anon users"
+ON public.pallets
+FOR DELETE
+USING (true);
