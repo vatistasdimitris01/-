@@ -57,6 +57,7 @@ interface DataCardProps {
   row: Row;
   onUpdateRow: (id: string, updatedData: Partial<Omit<Row, 'id'>>) => void;
   onDeleteRow: (id:string, row: Row) => void;
+  isOnline: boolean;
 }
 
 const displayDate = (dateStr: string) => {
@@ -67,17 +68,26 @@ const displayDate = (dateStr: string) => {
     return `${day}/${month}/${year}`;
 };
 
-const DataCard: React.FC<DataCardProps> = ({ row, onUpdateRow, onDeleteRow }) => {
+const DataCard: React.FC<DataCardProps> = ({ row, onUpdateRow, onDeleteRow, isOnline }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex items-center justify-between space-x-4 transition-all duration-300 ease-in-out">
         <div className="flex-1 min-w-0">
             <p className="text-base font-bold text-gray-800 dark:text-gray-100 truncate">{row.supplier}</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">{displayDate(row.date)}</p>
         </div>
-        <div className="w-16 flex-shrink-0">
-            <EditableCell value={row.pallets} onSave={(newVal) => onUpdateRow(row.id, { pallets: Number(newVal) })} inputType="number" />
+        <div className="w-16 flex-shrink-0 text-center">
+            {isOnline ? (
+                <EditableCell value={row.pallets} onSave={(newVal) => onUpdateRow(row.id, { pallets: Number(newVal) })} inputType="number" />
+            ) : (
+                <span className="p-1">{row.pallets}</span>
+            )}
         </div>
-        <button onClick={() => onDeleteRow(row.id, row)} className="flex-shrink-0 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-2 rounded-full transition-colors" aria-label={`Διαγραφή εγγραφής για ${row.supplier}`}>
+        <button 
+            onClick={() => onDeleteRow(row.id, row)} 
+            disabled={!isOnline}
+            className="flex-shrink-0 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-2 rounded-full transition-colors disabled:text-gray-500 dark:disabled:text-gray-600 disabled:cursor-not-allowed" 
+            aria-label={`Διαγραφή εγγραφής για ${row.supplier}`}
+        >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
@@ -113,9 +123,10 @@ interface DataTableProps {
     rows: Row[];
     onUpdateRow: (id: string, updatedData: Partial<Omit<Row, 'id'>>) => void;
     onDeleteRow: (id:string, row: Row) => void;
+    isOnline: boolean;
 }
 
-export const DataTable: React.FC<DataTableProps> = ({ rows, onUpdateRow, onDeleteRow }) => {
+export const DataTable: React.FC<DataTableProps> = ({ rows, onUpdateRow, onDeleteRow, isOnline }) => {
     const groupedRows = rows.reduce((acc, row) => {
         (acc[row.date] = acc[row.date] || []).push(row);
         return acc;
@@ -156,6 +167,7 @@ export const DataTable: React.FC<DataTableProps> = ({ rows, onUpdateRow, onDelet
                                 row={row}
                                 onUpdateRow={onUpdateRow}
                                 onDeleteRow={onDeleteRow}
+                                isOnline={isOnline}
                             />
                         ))}
                     </div>

@@ -1,10 +1,14 @@
-const CACHE_NAME = 'pallet-tracker-cache-v1';
+const CACHE_NAME = 'pallet-tracker-cache-v2';
+const DATA_CACHE_NAME = 'pallet-tracker-data-cache-v1';
+
 const urlsToCache = [
   '/',
   '/index.html',
+  '/index.tsx', // Assuming this is served directly by a dev server or similar
 ];
 
-// Install event: open a cache and add the core app shell files to it.
+const supabaseApiUrl = 'https://kbsgklmcpuprxqykzirz.supabase.co/rest/v1/pallets';
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -15,13 +19,52 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Fetch event: serve assets from cache, falling back to network, and then caching the new asset.
+self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [CACHE_NAME, DATA_CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   // We only want to cache GET requests.
   if (event.request.method !== 'GET') {
     return;
   }
 
+  const requestUrl = new URL(event.request.url);
+
+  // Handle Supabase API calls with a network-first strategy
+  if (requestUrl.href.startsWith(supabaseApiUrl)) {
+    event.respondWith(
+      caches.open(DATA_CACHE_NAME).then((cache) => {
+        return fetch(event.request)
+          .then((networkResponse) => {
+            // If we get a valid response, cache it and return it
+            if (networkResponse && networkResponse.ok) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            // If the network request fails (offline), try to get it from the cache
+            return cache.match(event.request);
+          });
+      })
+    );
+    return;
+  }
+
+  // Handle App Shell assets with a cache-first strategy
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -34,16 +77,13 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request).then(
           (networkResponse) => {
             // Check if we received a valid response
-            if (!networkResponse || networkResponse.status !== 200) {
+            if (!networkResponse || !networkResponse.ok) {
               return networkResponse;
             }
 
-            // We need to clone the response because it's a stream and can only be consumed once.
             const responseToCache = networkResponse.clone();
-
             caches.open(CACHE_NAME)
               .then((cache) => {
-                // Cache the new resource for future use.
                 cache.put(event.request, responseToCache);
               });
 
@@ -51,24 +91,8 @@ self.addEventListener('fetch', (event) => {
           }
         ).catch(error => {
           console.error('Fetch failed:', error);
+          // Optional: You could return a custom offline page here
         });
       })
-  );
-});
-
-// Activate event: clean up old caches.
-self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
   );
 });

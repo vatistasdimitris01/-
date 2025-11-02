@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Row } from './types';
 import { supabase } from './supabaseClient';
 import { DataTable } from './components/DataTable';
@@ -8,8 +8,9 @@ import { Header } from './components/Header';
 const App: React.FC = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  const fetchRows = async () => {
+  const fetchRows = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -25,21 +26,39 @@ const App: React.FC = () => {
         setRows(data);
       }
     } catch (error) {
-      console.error("Error fetching rows:", error);
+      // Don't log errors if offline, as it's expected
+      if (navigator.onLine) {
+        console.error("Error fetching rows:", error);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchRows();
-  }, []);
+  }, [fetchRows]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      fetchRows(); // Refetch data when coming online
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [fetchRows]);
 
   const handleAddRow = async (newRowData: Omit<Row, 'id'>) => {
     try {
       const { error } = await supabase.from('pallets').insert([newRowData]);
       if (error) throw error;
-      // Refetch to get the latest data including the new row with its generated ID
       fetchRows(); 
     } catch (error) {
       console.error("Error adding row:", error);
@@ -96,12 +115,13 @@ const App: React.FC = () => {
       `}</style>
       <div className="min-h-screen bg-slate-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <Header />
-        <main className="max-w-lg mx-auto px-4 pb-12">
+        <main className="max-w-lg mx-auto px-4 pb-24">
           <div className="py-6 space-y-6">
               <FilterAndAddForm 
                 onAddRow={handleAddRow}
+                isOnline={isOnline}
               />
-              {loading ? (
+              {loading && rows.length === 0 ? (
                 <div className="text-center py-16 px-4">
                   <p className="text-gray-500 dark:text-gray-400">Φόρτωση δεδομένων...</p>
                 </div>
@@ -110,10 +130,16 @@ const App: React.FC = () => {
                     rows={rows} 
                     onDeleteRow={handleDeleteRow}
                     onUpdateRow={handleUpdateRow}
+                    isOnline={isOnline}
                 />
               )}
           </div>
         </main>
+        {!isOnline && (
+            <div className="fixed bottom-0 left-0 right-0 bg-yellow-500 text-yellow-900 text-center p-3 text-sm font-semibold shadow-lg animate-slide-in-up z-20">
+                Είστε εκτός σύνδεσης. Η λειτουργικότητα είναι περιορισμένη.
+            </div>
+        )}
       </div>
     </>
   );
