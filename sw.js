@@ -1,10 +1,14 @@
-const CACHE_NAME = 'pallet-tracker-cache-v2';
+const CACHE_NAME = 'pallet-tracker-cache-v3';
 const DATA_CACHE_NAME = 'pallet-tracker-data-cache-v1';
 
 const urlsToCache = [
   '/',
   '/index.html',
   '/index.tsx', // Assuming this is served directly by a dev server or similar
+  'https://cdn.tailwindcss.com',
+  'https://aistudiocdn.com/react@^19.2.0',
+  'https://aistudiocdn.com/react-dom@^19.2.0',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.4/+esm'
 ];
 
 const supabaseApiUrl = 'https://kbsgklmcpuprxqykzirz.supabase.co/rest/v1/pallets';
