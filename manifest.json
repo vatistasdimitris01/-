@@ -1,7 +1,7 @@
 {
   "name": "Καταγραφέας Παλετών",
   "short_name": "Παλέτες",
-  "start_url": ".",
+  "start_url": "/index.html",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#f1f5f9",
